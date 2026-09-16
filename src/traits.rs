@@ -1,3 +1,7 @@
+//! A series of traits which exist to support the library, patching what I
+//! consider to be holes in `std`. Implementing these traits in your own types
+//! can enable them to be used by `BigUInt`s or `BigInt`s as a backing type
+
 use std::{
     fmt::Debug,
     ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub},
@@ -50,6 +54,9 @@ pub trait FixedWidthSInt:
     /// Works identically to standard library [`i8::overflowing_add`], with
     /// the bool returning true if overflow has occurred
     fn overflowing_add(self, rhs: Self) -> (Self, bool);
+    /// Works identically to standard library [`i8::overflowing_sub`], with
+    /// the bool returning true if overflow has occurred
+    fn overflowing_sub(self, rhs: Self) -> (Self, bool);
 }
 
 /// Describes a fixed-width unsigned integer
@@ -88,6 +95,9 @@ pub trait FixedWidthUInt:
     /// Works identically to standard library [`u8::overflowing_add`], with
     /// the bool returning true if overflow has occurred
     fn overflowing_add(self, rhs: Self) -> (Self, bool);
+    /// Works identically to standard library [`u8::overflowing_sub`], with
+    /// the bool returning true if overflow has occurred
+    fn overflowing_sub(self, rhs: Self) -> (Self, bool);
 }
 
 macro_rules! impl_fw_sint {
@@ -102,6 +112,10 @@ macro_rules! impl_fw_sint {
             fn overflowing_add(self, rhs: Self) -> (Self, bool) {
                 self.overflowing_add(rhs)
             }
+
+            fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+                self.overflowing_sub(rhs)
+            }
         }
     };
 }
@@ -114,6 +128,10 @@ macro_rules! impl_fw_uint {
 
             fn overflowing_add(self, rhs: Self) -> (Self, bool) {
                 self.overflowing_add(rhs)
+            }
+
+            fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+                self.overflowing_sub(rhs)
             }
         }
     };

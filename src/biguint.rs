@@ -1,4 +1,9 @@
-use std::{any::Any, cmp::max, ops::Add};
+use std::{
+    any::Any,
+    cmp::max,
+    ops::{Add, Sub},
+    str::FromStr,
+};
 
 use crate::traits::FixedWidthUInt;
 
@@ -15,12 +20,52 @@ where
     backing: Vec<S>,
 }
 
+pub enum ParseBigUIntError {
+    InvalidDigit,
+    NegativeNumber,
+}
+
 impl<S: FixedWidthUInt> BigUInt<S> {
     pub fn new(init_val: S) -> Self {
         Self {
             backing: vec![init_val],
         }
     }
+
+    ///
+    /// # Panics
+    /// This panics if an invalid radix (not between 2 and 36 inclusive) is encountered,
+    /// or if the supplied backing type uses a nonpositive or indivisible-by-8 value for
+    /// `BITS`
+    ///
+    /// # Errors
+    /// If a negative number or out-of-radix digit is encountered
+    // pub fn from_str_radix(s: &str, radix: u32) -> Result<Self, ParseBigUIntError> {
+    //     assert!(
+    //         (2..37).contains(&radix),
+    //         "Radix must be an integer from 2 to 36 inclusive!"
+    //     );
+    //     assert!(
+    //         S::BITS >= 8 && S::BITS % 8 == 0,
+    //         "FixedWidthUInt::BITS must be a positive multiple of 8!"
+    //     );
+    //     if s.starts_with('-') {
+    //         return Err(ParseBigUIntError::NegativeNumber);
+    //     }
+    //     let mut result: BigUInt<S> = 0_u8.into();
+    //     let radix_u8: u8 = radix.try_into().ok().unwrap();
+    //     for ch in s.chars() {
+    //         let digit: u8 = ch
+    //             .to_digit(radix)
+    //             .ok_or(ParseBigUIntError::InvalidDigit)?
+    //             .try_into()
+    //             .ok()
+    //             .unwrap();
+    //         result = result * radix_u8.into() + digit.into();
+    //     }
+
+    //     Ok(result)
+    // }
 
     fn pack_into_vec<R: FixedWidthUInt>(mut value: R) -> Vec<S> {
         if let Some(value) = (&value as &dyn Any).downcast_ref::<S>() {
@@ -60,10 +105,16 @@ impl<S: FixedWidthUInt> BigUInt<S> {
         }
     }
 
-    fn overflowing_add_with_carry(lhs: S, rhs: S, carry: bool) -> (S, bool) {
+    fn carrying_add(lhs: S, rhs: S, carry: bool) -> (S, bool) {
         let (acc, more_carry) = lhs.overflowing_add(rhs);
         let (acc, carry) = acc.overflowing_add(u8::from(carry).into());
         (acc, carry || more_carry)
+    }
+
+    fn borrowing_sub(lhs: S, rhs: S, borrow: bool) -> (S, bool) {
+        let (acc, more_borrow) = lhs.overflowing_sub(rhs);
+        let (acc, borrow) = acc.overflowing_sub(u8::from(borrow).into());
+        (acc, borrow || more_borrow)
     }
 }
 
@@ -181,18 +232,14 @@ impl<S: FixedWidthUInt> Clone for BigUInt<S> {
     }
 }
 
-// impl<S: FixedWidthUInt> From<&str> for BigUInt<S> {
-//     fn from(_value: &str) -> Self {
-//         assert!(
-//             S::BITS >= 8 && S::BITS % 8 == 0,
-//             "FixedWidthUInt::BITS must be a positive multiple of 8!"
-//         );
-//         Self {
-//             // TODO: String conversion
-//             backing: vec![S::from(0_u8)],
-//         }
+// impl<S: FixedWidthUInt> FromStr for BigUInt<S> {
+//     type Err = ParseBigUIntError;
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         Self::from_str_radix(s, 10)
 //     }
 // }
+
+//=========================== Addition ===================================
 
 impl<S, R> Add<R> for BigUInt<S>
 where
@@ -203,6 +250,18 @@ where
     fn add(self, rhs: R) -> Self::Output {
         let rhs: BigUInt<S> = rhs.into();
         self.add(rhs)
+    }
+}
+
+impl<S, R> Add<&BigUInt<R>> for BigUInt<S>
+where
+    S: FixedWidthUInt,
+    R: FixedWidthUInt,
+{
+    type Output = Self;
+    fn add(self, rhs: &BigUInt<R>) -> Self::Output {
+        let rhs: Self = rhs.into();
+        self + rhs
     }
 }
 
@@ -231,7 +290,7 @@ impl<S: FixedWidthUInt> Add for BigUInt<S> {
         for i in 0..max(self.backing.len(), rhs.backing.len()) {
             let acc;
             (acc, carry) = match (self.backing.get(i), rhs.backing.get(i)) {
-                (Some(lhs), Some(rhs)) => BigUInt::overflowing_add_with_carry(*lhs, *rhs, carry),
+                (Some(lhs), Some(rhs)) => BigUInt::carrying_add(*lhs, *rhs, carry),
                 (Some(lhs), None) => lhs.overflowing_add(u8::from(carry).into()),
                 (None, Some(rhs)) => rhs.overflowing_add(u8::from(carry).into()),
                 (None, None) => break,
@@ -241,6 +300,74 @@ impl<S: FixedWidthUInt> Add for BigUInt<S> {
         if carry {
             backing.push(1_u8.into());
         }
+        Self { backing }
+    }
+}
+
+//========================== Subtraction =================================
+
+impl<S, R> Sub<R> for BigUInt<S>
+where
+    S: FixedWidthUInt,
+    R: FixedWidthUInt,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: R) -> Self::Output {
+        let rhs: Self = rhs.into();
+        self - rhs
+    }
+}
+
+impl<S, R> Sub<&BigUInt<R>> for BigUInt<S>
+where
+    S: FixedWidthUInt,
+    R: FixedWidthUInt,
+{
+    type Output = Self;
+    fn sub(self, rhs: &BigUInt<R>) -> Self::Output {
+        let rhs: Self = rhs.into();
+        self - rhs
+    }
+}
+
+impl<S: FixedWidthUInt> Sub for BigUInt<S> {
+    type Output = Self;
+    /// Will mirror runtime behavior for underflow, when wrapping wraps to the current
+    /// logical width of the underlying representation
+    ///
+    /// # Examples
+    /// ```
+    /// use smaller_bigint::BigUInt;
+    ///
+    /// let a = BigUInt::<u8>::from(420_u32);
+    /// let b = BigUInt::<u8>::new(67_u8);
+    ///
+    /// assert_eq!(a - b, 420_u32 - 67_u32);
+    /// ```
+    fn sub(self, rhs: Self) -> Self::Output {
+        assert!(
+            S::BITS >= 8 && S::BITS % 8 == 0,
+            "FixedWidthUInt::BITS must be a positive multiple of 8!"
+        );
+
+        let mut backing = Vec::new();
+        let mut borrow = false;
+        for i in 0..max(self.backing.len(), rhs.backing.len()) {
+            let acc;
+            (acc, borrow) = match (self.backing.get(i), rhs.backing.get(i)) {
+                (Some(lhs), Some(rhs)) => BigUInt::borrowing_sub(*lhs, *rhs, borrow),
+                (Some(lhs), None) => lhs.overflowing_sub(u8::from(borrow).into()),
+                (None, Some(rhs)) => BigUInt::borrowing_sub(0_u8.into(), *rhs, borrow),
+                (None, None) => break,
+            };
+            backing.push(acc);
+        }
+
+        if borrow {
+            let _ = 0_u8 - u8::from(borrow);
+        }
+
         Self { backing }
     }
 }
