@@ -17,7 +17,7 @@ where
     S: FixedWidthUInt,
 {
     // Limbs are stored least-significant first
-    backing: Vec<S>,
+    pub(crate) backing: Vec<S>,
 }
 
 pub enum ParseBigUIntError {
@@ -63,7 +63,7 @@ impl<S: FixedWidthUInt> BigUInt<S> {
     //             .unwrap();
     //         result = result * radix_u8.into() + digit.into();
     //     }
-
+    //     TODO: Strings :3
     //     Ok(result)
     // }
 
@@ -371,3 +371,5 @@ impl<S: FixedWidthUInt> Sub for BigUInt<S> {
         Self { backing }
     }
 }
+
+// TODO: MULTIPLICATION
