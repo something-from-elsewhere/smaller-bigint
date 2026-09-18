@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cmp::max,
     fmt::Display,
-    ops::{Add, Sub},
+    ops::{Add, Mul, Sub},
     str::FromStr,
 };
 
@@ -375,3 +375,24 @@ impl<S: FixedWidthUInt> Sub for BigUInt<S> {
 }
 
 // TODO: MULTIPLICATION
+//========================= Multiplication ===============================
+impl<S: FixedWidthUInt> Mul for BigUInt<S> {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut products: Vec<Vec<S>> = Vec::new();
+
+        let carry = false;
+        for chunk in rhs.backing {
+            let mut product: Vec<S> = vec![0_u8.into()];
+
+            for l_chunk in self.backing {
+                let (low, high) = chunk.multiply_safe(l_chunk);
+                let (result, over) = product[product.len() - 1].overflowing_add(low);
+                product[product.len() - 1] = result;
+                let (result, over) = high.overflowing_add(u8::from(over).into());
+            }
+        }
+
+        Ok(())
+    }
+}
