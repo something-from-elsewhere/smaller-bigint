@@ -1,6 +1,7 @@
 use std::{
     any::Any,
     cmp::max,
+    fmt::Display,
     ops::{Add, Sub},
     str::FromStr,
 };
@@ -20,6 +21,7 @@ where
     pub(crate) backing: Vec<S>,
 }
 
+#[derive(Debug)]
 pub enum ParseBigUIntError {
     InvalidDigit,
     NegativeNumber,

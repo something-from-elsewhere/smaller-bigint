@@ -2,6 +2,7 @@ use std::{error::Error, fmt::Display};
 
 use crate::BigUInt;
 
+#[derive(Debug)]
 pub struct BigBitSet {
     backing: BigUInt<u8>,
     len: usize,
