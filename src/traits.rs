@@ -58,7 +58,7 @@ pub trait FixedWidthInt:
     /// the bool returning true if overflow has occurred
     fn overflowing_sub(self, rhs: Self) -> (Self, bool);
     /// A multiplication method which should return the low and high parts in that order
-    fn multiply_safe(self, rhs: Self) -> (Self::Unsigned, Self);
+    fn safe_multiply(self, rhs: Self) -> (Self::Unsigned, Self);
 }
 
 /// Describes a fixed-width unsigned integer
@@ -101,7 +101,7 @@ pub trait FixedWidthUInt:
     /// the bool returning true if overflow has occurred
     fn overflowing_sub(self, rhs: Self) -> (Self, bool);
     /// A multiplication method which should return the low and high parts in that order
-    fn multiply_safe(self, rhs: Self) -> (Self, Self);
+    fn safe_multiply(self, rhs: Self) -> (Self, Self);
 }
 
 macro_rules! impl_fw_sint {
@@ -129,7 +129,7 @@ macro_rules! impl_fw_sint {
                 clippy::cast_possible_truncation,
                 reason = "Intentionally downcast and truncate"
             )]
-            fn multiply_safe(self, rhs: Self) -> (Self::Unsigned, Self) {
+            fn safe_multiply(self, rhs: Self) -> (Self::Unsigned, Self) {
                 let lhs: $doublewide = self.into();
                 let rhs: $doublewide = rhs.into();
                 let result = lhs * rhs;
@@ -157,7 +157,7 @@ macro_rules! impl_fw_uint {
                 clippy::cast_possible_truncation,
                 reason = "Intentionally downcast and truncate"
             )]
-            fn multiply_safe(self, rhs: Self) -> (Self, Self) {
+            fn safe_multiply(self, rhs: Self) -> (Self, Self) {
                 let lhs: $doublewide = self.into();
                 let rhs: $doublewide = rhs.into();
                 let result = lhs * rhs;
@@ -201,7 +201,7 @@ impl FixedWidthInt for i128 {
         clippy::cast_possible_wrap,
         reason = "Intentionally reinterpret as signed"
     )]
-    fn multiply_safe(self, rhs: Self) -> (Self::Unsigned, Self) {
+    fn safe_multiply(self, rhs: Self) -> (Self::Unsigned, Self) {
         let (lhs_neg, rhs_neg) = (self < 0, rhs < 0);
         let lhs = self as u128;
         let rhs = rhs as u128;
@@ -247,7 +247,7 @@ impl FixedWidthUInt for u128 {
         clippy::cast_possible_truncation,
         reason = "Intentionally downcast and truncate"
     )]
-    fn multiply_safe(self, rhs: Self) -> (Self, Self) {
+    fn safe_multiply(self, rhs: Self) -> (Self, Self) {
         let lhs0: u128 = (self as u64).into();
         let lhs1: u128 = self >> 64;
         let rhs0: u128 = (rhs as u64).into();

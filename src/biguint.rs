@@ -376,23 +376,75 @@ impl<S: FixedWidthUInt> Sub for BigUInt<S> {
 
 // TODO: MULTIPLICATION
 //========================= Multiplication ===============================
-impl<S: FixedWidthUInt> Mul for BigUInt<S> {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self::Output {
+
+impl<S: FixedWidthUInt> BigUInt<S> {
+    /// I make no guarantees as I don't have it in me to inspect the generated assembly, but this
+    /// multiplication SHOULD be constant-time, and leaks no data through result's total width <3
+    fn secure_mul(self, rhs: Self) -> Self {
         let mut products: Vec<Vec<S>> = Vec::new();
 
-        let carry = false;
+        let mut carry = false;
         for chunk in rhs.backing {
             let mut product: Vec<S> = vec![0_u8.into()];
 
-            for l_chunk in self.backing {
-                let (low, high) = chunk.multiply_safe(l_chunk);
-                let (result, over) = product[product.len() - 1].overflowing_add(low);
-                product[product.len() - 1] = result;
-                let (result, over) = high.overflowing_add(u8::from(over).into());
+            for l_chunk in &self.backing {
+                let (low, high) = chunk.safe_multiply(*l_chunk);
+                let last_idx = product.len() - 1;
+                let mut result;
+                (result, carry) = BigUInt::carrying_add(product[last_idx], low, carry);
+                product[last_idx] = result;
+                (result, carry) = high.overflowing_add(u8::from(carry).into());
+                product.push(result);
+            }
+            products.push(product);
+        }
+
+        let mut result = Vec::new();
+        for p in &products[0] {
+            result.push(*p);
+        }
+        result.push(0_u8.into());
+        for i in 1..products.len() {
+            let mut carry = false;
+            for j in 0..products[i].len() {
+                (result[i + j], carry) =
+                    BigUInt::carrying_add(result[i + j], products[i][j], carry);
+            }
+            result.push(u8::from(carry).into());
+        }
+
+        BigUInt { backing: result }
+    }
+}
+
+impl<S: FixedWidthUInt, R: FixedWidthUInt> Mul<R> for BigUInt<S> {
+    type Output = Self;
+    fn mul(self, rhs: R) -> Self::Output {
+        let rhs: BigUInt<S> = rhs.into();
+        self * rhs
+    }
+}
+
+impl<S: FixedWidthUInt, R: FixedWidthUInt> Mul<&BigUInt<R>> for BigUInt<S> {
+    type Output = Self;
+    fn mul(self, rhs: &BigUInt<R>) -> Self::Output {
+        let rhs: Self = rhs.into();
+        self * rhs
+    }
+}
+
+impl<S: FixedWidthUInt> Mul for BigUInt<S> {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut result = self.secure_mul(rhs);
+
+        if result.backing[result.backing.len() - 1] == 0_u8.into() {
+            result.backing.pop();
+            if result.backing[result.backing.len() - 1] == 0_u8.into() {
+                result.backing.pop();
             }
         }
 
-        Ok(())
+        result
     }
 }
