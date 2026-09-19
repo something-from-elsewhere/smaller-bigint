@@ -379,8 +379,11 @@ impl<S: FixedWidthUInt> Sub for BigUInt<S> {
 
 impl<S: FixedWidthUInt> BigUInt<S> {
     /// I make no guarantees as I don't have it in me to inspect the generated assembly, but this
-    /// multiplication SHOULD be constant-time, and leaks no data through result's total width <3
-    fn secure_mul(self, rhs: Self) -> Self {
+    /// multiplication SHOULD be constant-time with respect to operand values for fixed operand
+    /// widths. Its result width depends on the operand widths alone, and so leaks no additional
+    /// magnitude info <3
+    #[must_use]
+    pub fn secure_mul(self, rhs: Self) -> Self {
         let mut products: Vec<Vec<S>> = Vec::new();
 
         let mut carry = false;
