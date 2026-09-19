@@ -1,7 +1,6 @@
 use std::{
     any::Any,
     cmp::max,
-    fmt::Display,
     ops::{Add, Mul, Sub},
     str::FromStr,
 };
@@ -42,32 +41,32 @@ impl<S: FixedWidthUInt> BigUInt<S> {
     ///
     /// # Errors
     /// If a negative number or out-of-radix digit is encountered
-    // pub fn from_str_radix(s: &str, radix: u32) -> Result<Self, ParseBigUIntError> {
-    //     assert!(
-    //         (2..37).contains(&radix),
-    //         "Radix must be an integer from 2 to 36 inclusive!"
-    //     );
-    //     assert!(
-    //         S::BITS >= 8 && S::BITS % 8 == 0,
-    //         "FixedWidthUInt::BITS must be a positive multiple of 8!"
-    //     );
-    //     if s.starts_with('-') {
-    //         return Err(ParseBigUIntError::NegativeNumber);
-    //     }
-    //     let mut result: BigUInt<S> = 0_u8.into();
-    //     let radix_u8: u8 = radix.try_into().ok().unwrap();
-    //     for ch in s.chars() {
-    //         let digit: u8 = ch
-    //             .to_digit(radix)
-    //             .ok_or(ParseBigUIntError::InvalidDigit)?
-    //             .try_into()
-    //             .ok()
-    //             .unwrap();
-    //         result = result * radix_u8.into() + digit.into();
-    //     }
-    //     TODO: Strings :3
-    //     Ok(result)
-    // }
+    pub fn from_str_radix(s: &str, radix: u32) -> Result<Self, ParseBigUIntError> {
+        assert!(
+            (2..37).contains(&radix),
+            "Radix must be an integer from 2 to 36 inclusive!"
+        );
+        assert!(
+            S::BITS >= 8 && S::BITS % 8 == 0,
+            "FixedWidthUInt::BITS must be a positive multiple of 8!"
+        );
+        if s.starts_with('-') {
+            return Err(ParseBigUIntError::NegativeNumber);
+        }
+        let mut result: BigUInt<S> = 0_u8.into();
+        let radix_u8: u8 = radix.try_into().ok().unwrap();
+        for ch in s.chars() {
+            let digit: u8 = ch
+                .to_digit(radix)
+                .ok_or(ParseBigUIntError::InvalidDigit)?
+                .try_into()
+                .ok()
+                .unwrap();
+            result = result * radix_u8 + digit;
+        }
+
+        Ok(result)
+    }
 
     fn pack_into_vec<R: FixedWidthUInt>(mut value: R) -> Vec<S> {
         if let Some(value) = (&value as &dyn Any).downcast_ref::<S>() {
@@ -234,12 +233,12 @@ impl<S: FixedWidthUInt> Clone for BigUInt<S> {
     }
 }
 
-// impl<S: FixedWidthUInt> FromStr for BigUInt<S> {
-//     type Err = ParseBigUIntError;
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         Self::from_str_radix(s, 10)
-//     }
-// }
+impl<S: FixedWidthUInt> FromStr for BigUInt<S> {
+    type Err = ParseBigUIntError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str_radix(s, 10)
+    }
+}
 
 //=========================== Addition ===================================
 
